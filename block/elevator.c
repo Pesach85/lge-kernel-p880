@@ -177,7 +177,7 @@ static int elevator_init_queue(struct request_queue *q,
 	return -ENOMEM;
 }
 
-static char chosen_elevator[16];
+static char chosen_elevator[ELV_NAME_MAX];
 
 static int __init elevator_setup(char *str)
 {
