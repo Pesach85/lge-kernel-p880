@@ -5,7 +5,9 @@
 
 /*
  * Little-endian word-at-a-time zero byte handling.
+<<<<<<< HEAD
  * Algorithm copied from x86.
+ * Heavily based on the x86 algorithm.
  */
 #include <linux/kernel.h>
 
@@ -37,6 +39,19 @@ static inline unsigned long find_zero(unsigned long mask)
 	long a = (0x0ff0001 + mask) >> 23;
 	/* Fix the 1 for 00 case */
 	return a & mask;
+	unsigned long ret;
+
+#if __LINUX_ARM_ARCH__ >= 5
+	/* We have clz available. */
+	ret = fls(mask) >> 3;
+#else
+	/* (000000 0000ff 00ffff ffffff) -> ( 1 1 2 3 ) */
+	ret = (0x0ff0001 + mask) >> 23;
+	/* Fix the 1 for 00 case */
+	ret &= mask;
+#endif
+
+	return ret;
 }
 
 #else	/* __ARMEB__ */
