@@ -538,44 +538,28 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	char	str_governor[16];
 	struct cpufreq_policy new_policy;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	int cpu;
-#endif
-
+	ret = cpufreq_get_policy(&new_policy, policy->cpu);
+	if (ret)
+		return ret;
 
 	ret = sscanf(buf, "%15s", str_governor);
 	if (ret != 1)
 		return -EINVAL;
 
-	// maxwen: try to set govenor to all online cpus
-	// else govvener will be set when cpu comes online the next time
-#ifdef CONFIG_HOTPLUG_CPU
-	for_each_present_cpu(cpu) {
-		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret){
-			continue;
-		}
+	if (cpufreq_parse_governor(str_governor, &new_policy.policy,
+						&new_policy.governor))
+		return -EINVAL;
 
-		if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor)){
+	/* Do not use cpufreq_set_policy here or the user_policy.max
+	   will be wrongly overridden */
+	ret = __cpufreq_set_policy(policy, &new_policy);
 
-			continue;
-		}
+	policy->user_policy.policy = policy->policy;
+	policy->user_policy.governor = policy->governor;
 
-		/* Do not use cpufreq_set_policy here or the user_policy.max
-	   	will be wrongly overridden */
-		ret = __cpufreq_set_policy(policy, &new_policy);
-
-		policy->user_policy.policy = policy->policy;
-		policy->user_policy.governor = policy->governor;
-
-		if (ret){
-			continue;
-		}
-		printk(KERN_ERR "maxwen:setting govenor %s on cpu %d ok\n", str_governor, cpu);
-	}
-
-#endif
+	if (ret)
+		return ret;
+	else
 		return count;
 }
 
