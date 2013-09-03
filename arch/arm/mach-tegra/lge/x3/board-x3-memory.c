@@ -627,7 +627,7 @@ static const struct tegra_emc_table x3_emc_tables_k4p8g304eb_533[] =
 	},
 	{
 		0x32,       /* Rev 3.2 */
-		266500,     /* SDRAM frequency */
+		408000,     /* SDRAM frequency */
 		{
 			0x0000000f, /* EMC_RC */
 			0x00000022, /* EMC_RFC */
@@ -747,7 +747,7 @@ static const struct tegra_emc_table x3_emc_tables_k4p8g304eb_533[] =
 	},
 	{
 		0x32,       /* Rev 3.2 */
-		437000,     /* SDRAM frequency */
+		510000,     /* SDRAM frequency */
 		{
 			0x0000001a, /* EMC_RC */
 			0x00000038, /* EMC_RFC */
@@ -867,7 +867,7 @@ static const struct tegra_emc_table x3_emc_tables_k4p8g304eb_533[] =
 	},
 	{
 		0x32,       /* Rev 3.2 */
-		533000,     /* SDRAM frequency */
+		566000,     /* SDRAM frequency */
 		{
 			0x0000001f, /* EMC_RC */
 			0x00000045, /* EMC_RFC */
@@ -989,7 +989,7 @@ static const struct tegra_emc_table x3_emc_tables_k4p8g304eb_533[] =
 
 int x3_emc_init(void)
 {
-	printk("init 533MHz Timing table\n");
+	printk("init 566MHz Timing table\n");
 
         tegra_init_emc(x3_emc_tables_k4p8g304eb_533,
           ARRAY_SIZE(x3_emc_tables_k4p8g304eb_533));
