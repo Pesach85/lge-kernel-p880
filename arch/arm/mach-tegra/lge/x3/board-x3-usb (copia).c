@@ -26,12 +26,12 @@
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/fsl_devices.h>
 
-#include "../board.h"
-#include "../clock.h"
+#include <mach-tegra/board.h>
+#include <mach-tegra/clock.h>
 #include <lge/board-x3.h>
 #include <lge/board-x3-usb.h>
-#include "../devices.h"
-#include "../gpio-names.h"
+#include <mach-tegra/devices.h>
+#include <mach-tegra/gpio-names.h>
 
 #if defined(CONFIG_MFD_MAX77663)
 #include <linux/mfd/max77663-core.h>
@@ -283,7 +283,7 @@ static struct platform_device rndis_device = {
 static struct tegra_usb_platform_data tegra_udc_pdata = {
 	.port_otg = true,
 	.has_hostpc = true,
-//	.builtin_host_disabled = true,
+	.builtin_host_disabled = true,
 	.phy_intf = TEGRA_USB_PHY_INTF_UTMI,
 	.op_mode = TEGRA_USB_OPMODE_DEVICE,
 	.u_data.dev = {
@@ -323,8 +323,7 @@ static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
 	.op_mode = TEGRA_USB_OPMODE_HOST,
 	.u_data.host = {
 		.vbus_gpio = -1,
-//		.vbus_reg = "usb_vbus",
-//		.vbus_gpio = MAX77663_GPIO_BASE + MAX77663_GPIO1,
+		.vbus_reg = "usb_vbus",
 		.hot_plug = true,
 		.remote_wakeup_supported = true,
 		.power_off_on_suspend = true,
@@ -363,19 +362,14 @@ static struct platform_device *tegra_usb_otg_host_register(void)
 	pdev->dev.dma_mask =  tegra_ehci1_device.dev.dma_mask;
 	pdev->dev.coherent_dma_mask = tegra_ehci1_device.dev.coherent_dma_mask;
 
-	platform_data = kmalloc(sizeof(struct tegra_usb_platform_data),
+	platform_data = kmalloc(sizeof(struct tegra_ehci_platform_data),
 		GFP_KERNEL);
 	if (!platform_data)
 		goto error;
 
-	val = platform_device_add_data(pdev, &tegra_ehci1_utmi_pdata,
+	memcpy(platform_data, &tegra_ehci1_utmi_pdata[0],
 				sizeof(struct tegra_usb_platform_data));
-	if (val)
-		goto error;
-
-//EPRJ	memcpy(platform_data, &tegra_ehci1_utmi_pdata[0],
-//EPRJ				sizeof(struct tegra_usb_platform_data));
-//EPRJ	pdev->dev.platform_data = platform_data;
+	pdev->dev.platform_data = platform_data;
 
 	val = platform_device_add(pdev);
 	if (val)
@@ -400,7 +394,7 @@ static void tegra_usb_otg_host_unregister(struct platform_device *pdev)
 static struct tegra_usb_otg_data tegra_otg_pdata = {
 	.ehci_device = &tegra_ehci1_device,
 	.ehci_pdata = &tegra_ehci1_utmi_pdata,
-
+	
 };
 
 #ifdef CONFIG_USB_ANDROID_RNDIS

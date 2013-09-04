@@ -32,8 +32,8 @@
 #ifdef LGE_RESTRICT_POWER_DURING_SLEEP
 #include "../../drivers/misc/muic/muic.h"
 extern TYPE_CHARGING_MODE charging_mode;
-#define RESTRICTED_CLOCK	700000
-#define RESTRICTED_CORE		2
+#define RESTRICTED_CLOCK	500000
+#define RESTRICTED_CORE		3
 #endif
 #define LGE_EARLYSUSPEND_DEBUG  1  //[20110131:geayoung.baek] suspend,resume monitoring
 
@@ -244,10 +244,6 @@ void request_suspend_state(suspend_state_t new_state)
 
 		state &= ~SUSPEND_REQUESTED;
 		wake_lock(&main_wake_lock);
-		if (wake_lock_active(&power_key_wake_lock))
-			wake_unlock(&power_key_wake_lock);
-		if (wake_lock_active(&udc_resume_wake_lock))
-			wake_unlock(&udc_resume_wake_lock);
 		queue_work(suspend_work_queue, &late_resume_work);
 	}
 //                           
