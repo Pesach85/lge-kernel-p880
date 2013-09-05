@@ -24,6 +24,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -52,6 +53,26 @@ enum {
 	GCWQ_FREEZING		= 1 << 3,	/* freeze in progress */
 	GCWQ_HIGHPRI_PENDING	= 1 << 4,	/* highpri works on queue */
 
+/*
+   * global_cwq flags
+   *
+   * A bound gcwq is either associated or disassociated with its CPU.
+   * While associated (!DISASSOCIATED), all workers are bound to the
+   * CPU and none has %WORKER_UNBOUND set and concurrency management
+   * is in effect.
+   *
+   * While DISASSOCIATED, the cpu may be offline and all workers have
+   * %WORKER_UNBOUND set and concurrency management disabled, and may
+   * be executing on any CPU.  The gcwq behaves as an unbound one.
+   *
+   * Note that DISASSOCIATED can be flipped only while holding
+   * managership of all pools on the gcwq to avoid changing binding
+   * state while create_worker() is in progress.
+   */
+
+  /* pool flags */
+  POOL_MANAGE_WORKERS  = 1 << 0,  /* need to manage workers */
+
 	/* worker flags */
 	WORKER_STARTED		= 1 << 0,	/* started */
 	WORKER_DIE		= 1 << 1,	/* die die die */
@@ -71,6 +92,7 @@ enum {
 	TRUSTEE_BUTCHER		= 2,		/* butcher workers */
 	TRUSTEE_RELEASE		= 3,		/* release workers */
 	TRUSTEE_DONE		= 4,		/* trustee is done */
+        NR_WORKER_POOLS    = 2,    /* # worker pools per gcwq */
 
 	BUSY_WORKER_HASH_ORDER	= 6,		/* 64 pointers */
 	BUSY_WORKER_HASH_SIZE	= 1 << BUSY_WORKER_HASH_ORDER,
@@ -91,6 +113,7 @@ enum {
 	 * all cpus.  Give -20.
 	 */
 	RESCUER_NICE_LEVEL	= -20,
+        HIGHPRI_NICE_LEVEL  = -20,
 };
 
 /*
@@ -115,6 +138,8 @@ enum {
  */
 
 struct global_cwq;
+struct worker_pool;
+struct idle_rebind;
 
 /*
  * The poor guys doing the actual heavy lifting.  All on-duty workers
@@ -132,11 +157,31 @@ struct worker {
 	struct list_head	scheduled;	/* L: scheduled works */
 	struct task_struct	*task;		/* I: worker task */
 	struct global_cwq	*gcwq;		/* I: the associated gcwq */
+        struct worker_pool  *pool;    /* I: the associated pool */
 	/* 64 bytes boundary on 64bit, 32 on 32bit */
 	unsigned long		last_active;	/* L: last active timestamp */
 	unsigned int		flags;		/* X: flags */
 	int			id;		/* I: worker id */
-	struct work_struct	rebind_work;	/* L: rebind worker to cpu */
+/* for rebinding worker to CPU */
+  struct idle_rebind  *idle_rebind;  /* L: for idle worker */
+  struct work_struct  rebind_work;  /* L: for busy worker */
+};
+
+  struct worker_pool {
+  struct global_cwq  *gcwq;    /* I: the owning gcwq */
+  unsigned int    flags;    /* X: flags */
+
+  struct list_head  worklist;  /* L: list of pending works */
+  int      nr_workers;  /* L: total number of workers */
+  int      nr_idle;  /* L: currently idle ones */
+
+  struct list_head  idle_list;  /* X: list of idle workers */
+  struct timer_list  idle_timer;  /* L: worker idle timeout */
+  struct timer_list  mayday_timer;  /* L: SOS timer for dworkers */
+
+  struct mutex    manager_mutex;  /* mutex manager should hold */
+  struct ida    worker_ida;  /* L: for worker IDs */
+
 };
 
 /*
@@ -176,6 +221,7 @@ struct global_cwq {
  */
 struct cpu_workqueue_struct {
 	struct global_cwq	*gcwq;		/* I: the associated gcwq */
+        struct worker_pool  *pool;    /* I: the associated pool */
 	struct workqueue_struct *wq;		/* I: the owning workqueue */
 	int			work_color;	/* L: current color */
 	int			flush_color;	/* L: flushing color */
@@ -263,6 +309,10 @@ EXPORT_SYMBOL_GPL(system_nrt_freezable_wq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
+
+#define for_each_worker_pool(pool, gcwq)        \
+  for ((pool) = &(gcwq)->pools[0];        \
+       (pool) < &(gcwq)->pools[NR_WORKER_POOLS]; (pool)++)
 
 #define for_each_busy_worker(worker, i, pos, gcwq)			\
 	for (i = 0; i < BUSY_WORKER_HASH_SIZE; i++)			\
